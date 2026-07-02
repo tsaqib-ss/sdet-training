@@ -1,20 +1,23 @@
 import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/login.page';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('https://www.saucedemo.com/');
-  await page.locator('[data-test="username"]').fill('standard_user');
-  await page.locator('[data-test="password"]').fill('secret_sauce');
-  await page.locator('[data-test="login-button"]').click();
-  await expect(page).toHaveURL(/.*inventory.html/);
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await loginPage.login({
+        username: 'standard_user',
+        password: 'secret_sauce',
+    });
+    await loginPage.confirmLoginSuccess();
 });
 
-test.describe('product data', () => {
+test.describe('product', () => {
   test('show exactly 6 products', async ({ page }) => {
-    await expect(page.locator('.inventory_item')).toHaveCount(6);
+    await expect(page.locator('[data-test="inventory-item"]')).toHaveCount(6);
   });
 
   test('each product has name, price, and image', async ({ page }) => {
-    const items = page.locator('.inventory_item');
+    const items = page.locator('[data-test="inventory-item"]');
     const count = await items.count();
 
     for (let i = 0; i < count; i++) {

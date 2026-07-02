@@ -1,12 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { LoginPage } from "../pages/login.page";
 
 test("Login until checkout complete", async ({ page }) => {
   await page.goto("https://www.saucedemo.com/");
 
   // login with valid credentials
-  await page.getByRole("textbox", { name: "Username" }).fill("standard_user");
-  await page.getByRole("textbox", { name: "Password" }).fill("secret_sauce");
-  await page.getByRole("button", { name: "Login" }).click();
+  const loginPage = new LoginPage(page);
+  await loginPage.goto();
+  await loginPage.login({
+    username: "standard_user",
+    password: "secret_sauce",
+  });
+  await loginPage.confirmLoginSuccess();
 
   // Add items to cart
   await page.getByRole("button", { name: "Add to cart" }).first().click();
@@ -23,5 +28,7 @@ test("Login until checkout complete", async ({ page }) => {
 
   // Complete the purchase
   await page.getByRole("button", { name: "Finish" }).click();
-  await expect(page).toHaveURL("https://www.saucedemo.com/checkout-complete.html");
+  await expect(page).toHaveURL(
+    "https://www.saucedemo.com/checkout-complete.html",
+  );
 });
