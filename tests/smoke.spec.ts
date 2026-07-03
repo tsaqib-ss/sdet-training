@@ -1,34 +1,48 @@
-import { test, expect } from "@playwright/test";
-import { LoginPage } from "../pages/login.page";
+import { test } from "../fixtures/test-fixtures";
+import { ENV } from "../config/env";
 
-test("Login until checkout complete", async ({ page }) => {
-  await page.goto("https://www.saucedemo.com/");
+const BACKPACK = "sauce-labs-backpack";
+const INFO = { firstName: "Ayam", lastName: "Jago", postalCode: "321321" };
 
-  // login with valid credentials
-  const loginPage = new LoginPage(page);
-  await loginPage.goto();
-  await loginPage.login({
-    username: "standard_user",
-    password: "secret_sauce",
-  });
-  await loginPage.confirmLoginSuccess();
+// Critical-path smoke: login → browse → detail → cart → checkout complete.
+// Runs logged-out (see "auth" project) and exercises every page object.
+test("login through checkout complete", async ({
+    loginPage,
+    inventoryPage,
+    productDetailPage,
+    cartPage,
+    checkoutPage,
+}) => {
+    // Login
+    await loginPage.goto();
+    await loginPage.login({
+        username: ENV.standardUser,
+        password: ENV.standardPassword,
+    });
+    await loginPage.confirmLoginSuccess();
 
-  // Add items to cart
-  await page.getByRole("button", { name: "Add to cart" }).first().click();
+    // Inventory loads
+    await inventoryPage.expectLoaded();
 
-  // Proceed to checkout
-  await page.goto("https://www.saucedemo.com/cart.html");
-  await page.getByRole("button", { name: "Checkout" }).click();
+    // Open a product detail and go back
+    const firstName = (await inventoryPage.names())[0];
+    await inventoryPage.openProductDetail(0);
+    await productDetailPage.expectOpen();
+    await productDetailPage.expectName(firstName);
+    await productDetailPage.backToProducts();
 
-  // Fill in checkout information
-  await page.getByRole("textbox", { name: "First Name" }).fill("Ayam");
-  await page.getByRole("textbox", { name: "Last Name" }).fill("Jago");
-  await page.getByRole("textbox", { name: "Postal Code" }).fill("321321");
-  await page.getByRole("button", { name: "Continue" }).click();
+    // Add to cart
+    await inventoryPage.addToCart(BACKPACK);
+    await inventoryPage.expectCartBadgeCount(1);
 
-  // Complete the purchase
-  await page.getByRole("button", { name: "Finish" }).click();
-  await expect(page).toHaveURL(
-    "https://www.saucedemo.com/checkout-complete.html",
-  );
+    // Cart has the product
+    await inventoryPage.openCart();
+    await cartPage.expectItemCount(1);
+    await cartPage.expectHasProduct("Sauce Labs Backpack");
+
+    // Checkout to completion
+    await cartPage.checkout();
+    await checkoutPage.fillInformation(INFO);
+    await checkoutPage.finish();
+    await checkoutPage.expectComplete();
 });
